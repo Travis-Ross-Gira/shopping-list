@@ -25,6 +25,7 @@
 
     // todo items
     let itemStore: Writable<Record<string, Item>> = writable({});
+    $: allItems = Object.values($itemStore);
 
     // new todo item
     let newItem = newShoppingItem();
@@ -70,6 +71,12 @@
                 >
                     <span class="material-icons">add</span>
                 </button>
+                <li>Brot</li>
+                <li>Eier</li>
+                <li>Käse</li>
+                {#each allItems as item}
+                    <li>{item.text}</li>
+                {/each}
         </div>
     </div>
 </body>
