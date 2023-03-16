@@ -1,44 +1,90 @@
+<script lang="ts" context="module">
+    type Item = {
+      id: string;
+      timeCreated: number;
+      timeCompleted?: number;
+      text: string;
+    };
+
+    function nextId() {
+      return Math.random().toString(36).substring(2, 15);
+    }
+
+    function newShoppingItem(): Item {
+      return {
+        id: nextId(),
+        timeCreated: 0,
+        text: '',
+      };
+    }
+  </script>
+
 <script lang="ts">
-    let newItem = '';
+    import { writable, type Writable } from "svelte/store";
+    import { undoStack, transactionCtrl } from '@gira-de/svelte-undo';
 
-    let shoppingList: string[] = [
-        'Brot',
-        'Käse',
-        'Milch',
-        'Eier',
-    ];
+    // todo items
+    let itemStore: Writable<Record<string, Item>> = writable({});
 
-    function addItem(){
-        shoppingList = [...shoppingList, newItem];
+    // new todo item
+    let newItem = newShoppingItem();
+
+    function addDraftItem(){
+        newItem.timeCreated = Date.now();
+        const itemsDraft = transaction.draft(itemStore);
+        itemsDraft[newItem.id] = newItem;
+        transaction.commit(`item ${newItem.text} added`);
+        newItem = newShoppingItem();
     }
 
-    function removeItem(index: number){
-        shoppingList.splice(index, 1);
-        shoppingList = shoppingList;
-    }
+    const myUndoStack = undoStack('undo-stack created');
+    const transaction = transactionCtrl(myUndoStack);
 </script>
 
 <body>
-    <h1>Einkaufsliste</h1>
-    <img src="https://lerneprogrammieren.de/wordpress/wp-content/uploads/einkaufswagen.png" height="35px" alt="Einkaufswagen Icon"/>
-    <div>
-        <input id="userInput" type="text" placeholder="Neuer Eintrag" bind:value={newItem} />
-        <button id="enterButton" on:click={addItem}>Hinzufügen</button>
-        <ul id="shoppingList">
-            {#each shoppingList as item, index}
-                <li>{item}</li>
-                <button on:click={() => removeItem(index)}>❌</button>
-            {/each}
-        </ul>
+    <div class="app">
+        <div>
+            <h3>Undo Stack</h3>
+            <button on:click={myUndoStack.undo} disabled={!$myUndoStack.canUndo}>Undo</button>
+            <button on:click={myUndoStack.redo} disabled={!$myUndoStack.canRedo}>Redo</button>
+            <ul>
+                {#each $myUndoStack.actions.slice().reverse() as undoAction}
+                  <li
+                    class:redo={undoAction.seqNbr > $myUndoStack.selectedAction.seqNbr}
+                    class:active={undoAction.seqNbr === $myUndoStack.selectedAction.seqNbr}
+                    on:click={() => myUndoStack.goto(undoAction.seqNbr)}
+                    on:keydown>
+                    {undoAction.msg}
+                  </li>
+                {/each}
+            </ul>
+        </div>
+        <div>
+            <h1>Shopping List</h1>
+            <ul>
+                <input type="text" bind:value={newItem.text} />
+                <button
+                    class="transparent"
+                    on:click={addDraftItem}
+                    disabled={!newItem.text}
+                >
+                    <span class="material-icons">add</span>
+                </button>
+        </div>
     </div>
 </body>
 
 <style>
     body {
-        background: #1d1e22;
+        background: #C5C5C5;
         text-align: center;
         font-family: "Arial", sans-serif;
         color: #ffffff;
+    }
+
+    .app {
+        display: grid;
+        grid-template-columns: 1fr 2fr;
     }
 
     h1 {
@@ -52,12 +98,12 @@
         margin-top: 10px;
     }
 
-    #enterButton {
+    button {
         border: none;
         padding: 20px;
         border-radius: 5px;
         color: #ffffff;
-        background-color: #4eb9cd;
+        background-color: #000000;
         transition: all 0.75s ease;
         font-weight: normal;
     }
@@ -69,19 +115,23 @@
 
     li {
         text-align: left;
-        margin-top: 20px;
         list-style: none;
         padding: 20px;
-        color: #ffffff;
-        text-transform: capitalize;
+        color: #000000;
         font-weight: 600;
         border-radius: 5px;
-        margin-bottom: 10px;
-        background: #4eb9cd;
-        transition: all 0.75s ease;
+        background-color: lightgray;
     }
 
-    li:hover {
-        background: #76cfe0;
+    button:hover {
+        background-color: #ffffff;
+        color: #000000;
+    }
+
+    .shopping-list {
+        display: grid;
+        grid-template-columns: 8fr 1fr;
+        gap: 2rem;
+        padding: 1rem;
     }
 </style>
